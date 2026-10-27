@@ -29,6 +29,17 @@ Projeto acadêmico com arquitetura MVVM, injeção de dependências com Hilt e p
 
 ## Telas
 
+## Capturas de tela
+
+|                         Início                         |                         Registrar                          |
+|:------------------------------------------------------:|:----------------------------------------------------------:|
+| <img src="screenshots/home_racinglog.png" width="260"> | <img src="screenshots/register_racinglog.png" width="260"> |
+
+|                          Análise                           |                         Histórico                         |
+|:----------------------------------------------------------:|:---------------------------------------------------------:|
+| <img src="screenshots/analysis_racinglog.png" width="260"> | <img src="screenshots/history_racinglog.png" width="260"> |
+
+
 ### Início
 Seleção do simulador e acesso às funcionalidades.
 
