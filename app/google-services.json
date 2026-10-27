@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "458840653143",
+    "project_id": "racinglog-b8ae1",
+    "storage_bucket": "racinglog-b8ae1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:458840653143:android:5a4551db5196a568571212",
+        "android_client_info": {
+          "package_name": "com.example.racinglog"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUFvc0C1sIbfOdC3LehUbsKShwAlEWk7Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
