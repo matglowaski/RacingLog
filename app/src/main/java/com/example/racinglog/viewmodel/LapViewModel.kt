@@ -23,9 +23,31 @@ class LapViewModel @Inject constructor(
     var saveSucceeded by mutableStateOf(false)
         private set
 
+    var lapBeingEdited by mutableStateOf<Lap?>(null)
+        private set
+
+    var isUpdating by mutableStateOf(false)
+        private set
+
+    var updateSucceeded by mutableStateOf(false)
+        private set
+
+    fun setLapToEdit(lap: Lap) {
+        lapBeingEdited = lap
+        message = null
+        updateSucceeded = false
+    }
+
+    fun clearEditingLap() {
+        lapBeingEdited = null
+        message = null
+        updateSucceeded = false
+    }
+
     fun clearMessage() {
         message = null
         saveSucceeded = false
+        updateSucceeded = false
     }
 
     fun saveLap(lap: Lap) {
@@ -46,6 +68,23 @@ class LapViewModel @Inject constructor(
             }
         }
     }
+
+    fun updateLap(lap: Lap) {
+        if (isUpdating) return
+
+        isUpdating = true
+        message = null
+        updateSucceeded = false
+
+        repository.updateLap(lap) { success, error ->
+            isUpdating = false
+            updateSucceeded = success
+
+            message = if (success) {
+                "Volta atualizada com sucesso!"
+            } else {
+                "Erro ao atualizar: ${error ?: "Erro desconhecido"}"
+            }
+        }
+    }
 }
-
-

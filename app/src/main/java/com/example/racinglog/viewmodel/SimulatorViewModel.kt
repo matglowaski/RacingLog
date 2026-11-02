@@ -26,5 +26,10 @@ class SimulatorViewModel @Inject constructor(
     fun selectSimulator(simulator: Simulator) {
         _selectedSimulator.value = simulator
     }
-}
 
+    fun selectSimulatorById(simulatorId: String) {
+        simulators.find { it.id == simulatorId }?.let {
+            _selectedSimulator.value = it
+        }
+    }
+}

@@ -16,77 +16,92 @@ class LapRepository @Inject constructor(
         lap: Lap,
         onResult: (Boolean, String?) -> Unit
     ) {
-        authRepository.signInAnonymously { success, error ->
+        val uid = authRepository.getCurrentUserId()
 
-            if (!success) {
-                onResult(
-                    false,
-                    error ?: "Falha na autenticação"
-                )
-                return@signInAnonymously
-            }
-
-            val uid = authRepository.getCurrentUserId()
-
-            if (uid == null) {
-                onResult(false, "Usuário não autenticado")
-                return@signInAnonymously
-            }
-
-            val document = firestore
-                .collection("users")
-                .document(uid)
-                .collection("laps")
-                .document()
-
-            val lapWithId = lap.copy(
-                id = document.id,
-                installationId = ""
-            )
-
-            document.set(lapWithId)
-                .addOnSuccessListener {
-                    onResult(true, null)
-                }
-                .addOnFailureListener { exception ->
-                    onResult(false, exception.message)
-                }
+        if (uid == null || !authRepository.isUserLoggedIn()) {
+            onResult(false, "Faça login para registrar uma volta.")
+            return
         }
+
+        val document = firestore
+            .collection("users")
+            .document(uid)
+            .collection("laps")
+            .document()
+
+        val lapWithId = lap.copy(
+            id = document.id,
+            installationId = ""
+        )
+
+        document.set(lapWithId)
+            .addOnSuccessListener {
+                onResult(true, null)
+            }
+            .addOnFailureListener { exception ->
+                onResult(false, exception.message ?: "Erro ao salvar volta.")
+            }
     }
 
     fun getLaps(
         onResult: (List<Lap>?, String?) -> Unit
     ) {
-        authRepository.signInAnonymously { success, error ->
+        val uid = authRepository.getCurrentUserId()
 
-            if (!success) {
-                onResult(null, error ?: "Falha na autenticação")
-                return@signInAnonymously
-            }
-
-            val uid = authRepository.getCurrentUserId()
-
-            if (uid == null) {
-                onResult(null, "Usuário não autenticado")
-                return@signInAnonymously
-            }
-
-            firestore
-                .collection("users")
-                .document(uid)
-                .collection("laps")
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    val laps = snapshot.documents.mapNotNull {
-                        it.toObject(Lap::class.java)
-                    }.sortedByDescending { it.createdAt }
-
-                    onResult(laps, null)
-                }
-                .addOnFailureListener { exception ->
-                    onResult(null, exception.message)
-                }
+        if (uid == null || !authRepository.isUserLoggedIn()) {
+            onResult(null, "Faça login para visualizar seu histórico.")
+            return
         }
+
+        firestore.collection("users")
+            .document(uid)
+            .collection("laps")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val laps = snapshot.documents
+                    .mapNotNull { it.toObject(Lap::class.java) }
+                    .sortedByDescending { it.createdAt }
+
+                onResult(laps, null)
+            }
+            .addOnFailureListener { exception ->
+                onResult(
+                    null,
+                    exception.message ?: "Erro ao carregar histórico."
+                )
+            }
+    }
+
+    fun updateLap(
+        lap: Lap,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        if (lap.id.isBlank()) {
+            onResult(false, "ID da volta inválido.")
+            return
+        }
+
+        val userId = authRepository.getCurrentUserId()
+
+        if (userId == null || !authRepository.isUserLoggedIn()) {
+            onResult(false, "Faça login para editar uma volta.")
+            return
+        }
+
+        firestore.collection("users")
+            .document(userId)
+            .collection("laps")
+            .document(lap.id)
+            .set(lap.copy(installationId = ""))
+            .addOnSuccessListener {
+                onResult(true, null)
+            }
+            .addOnFailureListener { exception ->
+                onResult(
+                    false,
+                    exception.message ?: "Erro ao atualizar volta."
+                )
+            }
     }
 
     fun deleteLap(
@@ -100,8 +115,8 @@ class LapRepository @Inject constructor(
 
         val userId = authRepository.getCurrentUserId()
 
-        if (userId == null) {
-            onResult(false, "Usuário não autenticado.")
+        if (userId == null || !authRepository.isUserLoggedIn()) {
+            onResult(false, "Faça login para excluir uma volta.")
             return
         }
 
@@ -121,4 +136,3 @@ class LapRepository @Inject constructor(
             }
     }
 }
-

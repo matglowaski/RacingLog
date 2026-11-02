@@ -1,3 +1,4 @@
+
 package com.example.racinglog.ui.screens.register
 
 import androidx.compose.foundation.layout.*
@@ -20,11 +21,15 @@ import com.example.racinglog.viewmodel.SimulatorViewModel
 @Composable
 fun RegisterScreen(
     simulatorViewModel: SimulatorViewModel,
-    lapViewModel: LapViewModel
+    lapViewModel: LapViewModel,
+    onSaveSuccess: () -> Unit
 ) {
     val simulator by simulatorViewModel.selectedSimulator.collectAsState()
+    val editingLap = lapViewModel.lapBeingEdited
 
-    val catalog = remember { RacingCatalogRepository() }
+    val catalog = remember {
+        RacingCatalogRepository()
+    }
 
     val tracks = remember(simulator.id) {
         catalog.getTracks(simulator.id)
@@ -50,26 +55,81 @@ fun RegisterScreen(
         it.category == selectedCategory
     }
 
-    var selectedCar by remember(simulator.id, selectedCategory) {
+    var selectedCar by remember(simulator.id) {
         mutableStateOf(availableCars.firstOrNull())
     }
 
-    var totalTime by remember { mutableStateOf("") }
-    var sector1 by remember { mutableStateOf("") }
-    var sector2 by remember { mutableStateOf("") }
-    var sector3 by remember { mutableStateOf("") }
+    var totalTime by remember {
+        mutableStateOf("")
+    }
+
+    var sector1 by remember {
+        mutableStateOf("")
+    }
+
+    var sector2 by remember {
+        mutableStateOf("")
+    }
+
+    var sector3 by remember {
+        mutableStateOf("")
+    }
+
+    // Preenche o formulário quando uma volta é selecionada para edição.
+    LaunchedEffect(editingLap?.id, simulator.id) {
+        editingLap?.let { lap ->
+            selectedTrack = tracks.find {
+                it.id == lap.trackId
+            }
+
+            selectedCategory = lap.category
+
+            selectedCar = cars.find {
+                it.id == lap.carId
+            }
+
+            totalTime = LapTimeUtils.formatTime(lap.totalTimeMs)
+
+            sector1 = lap.sector1Ms?.let {
+                LapTimeUtils.formatTime(it)
+            } ?: ""
+
+            sector2 = lap.sector2Ms?.let {
+                LapTimeUtils.formatTime(it)
+            } ?: ""
+
+            sector3 = lap.sector3Ms?.let {
+                LapTimeUtils.formatTime(it)
+            } ?: ""
+        }
+    }
+
+    // Retorna ao histórico depois de atualizar uma volta.
+    LaunchedEffect(lapViewModel.updateSucceeded) {
+        if (lapViewModel.updateSucceeded && editingLap != null) {
+            lapViewModel.clearEditingLap()
+            onSaveSuccess()
+        }
+    }
 
     val totalMs = LapTimeUtils.parseTime(totalTime)
+
     val s1 = if (sector1.isBlank()) null
     else LapTimeUtils.parseTime(sector1)
+
     val s2 = if (sector2.isBlank()) null
     else LapTimeUtils.parseTime(sector2)
+
     val s3 = if (sector3.isBlank()) null
     else LapTimeUtils.parseTime(sector3)
 
     val sectorsFilled = listOf(
-        sector1, sector2, sector3
-    ).count { it.isNotBlank() }
+        sector1,
+        sector2,
+        sector3
+    ).count {
+        it.isNotBlank()
+    }
 
     val sectorsValid = when (sectorsFilled) {
         0 -> true
@@ -95,7 +155,8 @@ fun RegisterScreen(
             totalMs != null &&
             sectorsValid &&
             timesMatch &&
-            !lapViewModel.isSaving
+            !lapViewModel.isSaving &&
+            !lapViewModel.isUpdating
 
     Column(
         modifier = Modifier
@@ -104,9 +165,14 @@ fun RegisterScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+
         Column {
             Text(
-                "RACING LOG / NOVA VOLTA",
+                if (editingLap != null) {
+                    "RACING LOG / EDITAR VOLTA"
+                } else {
+                    "RACING LOG / NOVA VOLTA"
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -115,7 +181,11 @@ fun RegisterScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                "Registrar volta",
+                if (editingLap != null) {
+                    "Editar volta"
+                } else {
+                    "Registrar volta"
+                },
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -134,7 +204,9 @@ fun RegisterScreen(
                 options = tracks.map { it.id to it.name },
                 selectedId = selectedTrack?.id ?: "",
                 onSelected = { id ->
-                    selectedTrack = tracks.find { it.id == id }
+                    selectedTrack = tracks.find {
+                        it.id == id
+                    }
                 }
             )
 
@@ -144,6 +216,9 @@ fun RegisterScreen(
                 selectedId = selectedCategory,
                 onSelected = {
                     selectedCategory = it
+                    selectedCar = cars.find { car ->
+                        car.category == it
+                    }
                 }
             )
 
@@ -152,7 +227,9 @@ fun RegisterScreen(
                 options = availableCars.map { it.id to it.name },
                 selectedId = selectedCar?.id ?: "",
                 onSelected = { id ->
-                    selectedCar = availableCars.find { it.id == id }
+                    selectedCar = availableCars.find {
+                        it.id == id
+                    }
                 }
             )
         }
@@ -162,9 +239,15 @@ fun RegisterScreen(
         ) {
             OutlinedTextField(
                 value = totalTime,
-                onValueChange = { totalTime = it },
-                label = { Text("Tempo total") },
-                placeholder = { Text("2:01.250") },
+                onValueChange = {
+                    totalTime = it
+                },
+                label = {
+                    Text("Tempo total")
+                },
+                placeholder = {
+                    Text("2:01.250")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
@@ -192,21 +275,27 @@ fun RegisterScreen(
                 SectorField(
                     label = "Setor 1",
                     value = sector1,
-                    onValueChange = { sector1 = it },
+                    onValueChange = {
+                        sector1 = it
+                    },
                     modifier = Modifier.weight(1f)
                 )
 
                 SectorField(
                     label = "Setor 2",
                     value = sector2,
-                    onValueChange = { sector2 = it },
+                    onValueChange = {
+                        sector2 = it
+                    },
                     modifier = Modifier.weight(1f)
                 )
 
                 SectorField(
                     label = "Setor 3",
                     value = sector3,
-                    onValueChange = { sector3 = it },
+                    onValueChange = {
+                        sector3 = it
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -229,6 +318,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 val lap = Lap(
+                    id = editingLap?.id ?: "",
                     simulatorId = simulator.id,
                     trackId = selectedTrack!!.id,
                     carId = selectedCar!!.id,
@@ -237,10 +327,16 @@ fun RegisterScreen(
                     sector1Ms = s1,
                     sector2Ms = s2,
                     sector3Ms = s3,
-                    createdAt = System.currentTimeMillis()
+                    createdAt = editingLap?.createdAt
+                        ?: System.currentTimeMillis(),
+                    installationId = editingLap?.installationId ?: ""
                 )
 
-                lapViewModel.saveLap(lap)
+                if (editingLap != null) {
+                    lapViewModel.updateLap(lap)
+                } else {
+                    lapViewModel.saveLap(lap)
+                }
             },
             enabled = canSave,
             modifier = Modifier
@@ -249,10 +345,11 @@ fun RegisterScreen(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                if (lapViewModel.isSaving) {
-                    "SALVANDO..."
-                } else {
-                    "SALVAR VOLTA"
+                when {
+                    lapViewModel.isSaving -> "SALVANDO..."
+                    lapViewModel.isUpdating -> "ATUALIZANDO..."
+                    editingLap != null -> "SALVAR ALTERAÇÕES"
+                    else -> "SALVAR VOLTA"
                 },
                 fontWeight = FontWeight.Bold
             )
@@ -261,7 +358,10 @@ fun RegisterScreen(
         lapViewModel.message?.let { message ->
             Text(
                 message,
-                color = if (lapViewModel.saveSucceeded) {
+                color = if (
+                    lapViewModel.saveSucceeded ||
+                    lapViewModel.updateSucceeded
+                ) {
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.error
@@ -311,8 +411,12 @@ private fun SectorField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = { Text("42.350") },
+        label = {
+            Text(label)
+        },
+        placeholder = {
+            Text("42.350")
+        },
         modifier = modifier,
         singleLine = true,
         textStyle = MaterialTheme.typography.bodySmall,
@@ -331,7 +435,9 @@ private fun RacingDropdown(
     selectedId: String,
     onSelected: (String) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember {
+        mutableStateOf(false)
+    }
 
     val selectedName = options
         .find { it.first == selectedId }
@@ -339,13 +445,17 @@ private fun RacingDropdown(
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = it }
+        onExpandedChange = {
+            expanded = it
+        }
     ) {
         OutlinedTextField(
             value = selectedName,
             onValueChange = {},
             readOnly = true,
-            label = { Text(label) },
+            label = {
+                Text(label)
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(
@@ -361,11 +471,15 @@ private fun RacingDropdown(
 
         ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = {
+                expanded = false
+            }
         ) {
             options.forEach { (id, name) ->
                 DropdownMenuItem(
-                    text = { Text(name) },
+                    text = {
+                        Text(name)
+                    },
                     onClick = {
                         onSelected(id)
                         expanded = false

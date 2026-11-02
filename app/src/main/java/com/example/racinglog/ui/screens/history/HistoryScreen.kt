@@ -1,3 +1,4 @@
+
 package com.example.racinglog.ui.screens.history
 
 import androidx.compose.foundation.layout.*
@@ -9,19 +10,44 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 import com.example.racinglog.data.model.Lap
 import com.example.racinglog.data.model.LapTimeUtils
 import com.example.racinglog.data.repository.RacingCatalogRepository
 import com.example.racinglog.viewmodel.HistoryViewModel
-import androidx.compose.ui.Alignment
 
 @Composable
 fun HistoryScreen(
-    viewModel: HistoryViewModel
+    viewModel: HistoryViewModel,
+    onEditClick: (Lap) -> Unit
 ) {
 
     var lapToDelete by remember {
         mutableStateOf<Lap?>(null)
+    }
+
+    var selectedSimulator by remember {
+        mutableStateOf("all")
+    }
+
+    var filterExpanded by remember {
+        mutableStateOf(false)
+    }
+
+    val simulators = listOf(
+        "all" to "Todos os simuladores",
+        "lmu" to "Le Mans Ultimate",
+        "ams2" to "Automobilista 2",
+        "iracing" to "iRacing",
+        "acc" to "Assetto Corsa Competizione"
+    )
+
+    val filteredLaps = if (selectedSimulator == "all") {
+        viewModel.laps
+    } else {
+        viewModel.laps.filter {
+            it.simulatorId == selectedSimulator
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -33,8 +59,8 @@ fun HistoryScreen(
             .fillMaxSize()
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
-
     ) {
+
         Column {
             Text(
                 "RACING LOG / REGISTROS",
@@ -55,6 +81,51 @@ fun HistoryScreen(
                 "Todas as suas sessões registradas.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                "FILTRAR POR SIMULADOR",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+
+            Box {
+                OutlinedButton(
+                    onClick = { filterExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        simulators.find {
+                            it.first == selectedSimulator
+                        }?.second ?: "Todos os simuladores"
+                    )
+
+                    Spacer(Modifier.weight(1f))
+
+                    Text("⌄")
+                }
+
+                DropdownMenu(
+                    expanded = filterExpanded,
+                    onDismissRequest = {
+                        filterExpanded = false
+                    },
+                    modifier = Modifier.fillMaxWidth(0.85f)
+                ) {
+                    simulators.forEach { (id, name) ->
+                        DropdownMenuItem(
+                            text = { Text(name) },
+                            onClick = {
+                                selectedSimulator = id
+                                filterExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
 
         OutlinedButton(
@@ -80,11 +151,15 @@ fun HistoryScreen(
 
         if (
             !viewModel.isLoading &&
-            viewModel.laps.isEmpty() &&
+            filteredLaps.isEmpty() &&
             viewModel.errorMessage == null
         ) {
             Text(
-                "Nenhuma volta registrada ainda.",
+                if (viewModel.laps.isEmpty()) {
+                    "Nenhuma volta registrada ainda."
+                } else {
+                    "Nenhuma volta registrada neste simulador."
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -95,11 +170,12 @@ fun HistoryScreen(
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             items(
-                items = viewModel.laps,
+                items = filteredLaps,
                 key = { it.id }
             ) { lap ->
                 LapHistoryCard(
                     lap = lap,
+                    onEditClick = { onEditClick(lap) },
                     onDeleteClick = {
                         lapToDelete = lap
                     }
@@ -107,6 +183,7 @@ fun HistoryScreen(
             }
         }
     }
+
     lapToDelete?.let { lap ->
         AlertDialog(
             onDismissRequest = {
@@ -147,13 +224,15 @@ fun HistoryScreen(
     }
 }
 
-
 @Composable
 private fun LapHistoryCard(
     lap: Lap,
+    onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val catalog = remember { RacingCatalogRepository() }
+    val catalog = remember {
+        RacingCatalogRepository()
+    }
 
     val trackName = remember(lap.simulatorId, lap.trackId) {
         catalog.getTracks(lap.simulatorId)
@@ -187,8 +266,6 @@ private fun LapHistoryCard(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
-
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -202,15 +279,24 @@ private fun LapHistoryCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                IconButton(onClick = onDeleteClick) {
-                    Text(
-                        text = "🗑",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = onEditClick
+                    ) {
+                        Text("EDITAR")
+                    }
+
+                    IconButton(onClick = onDeleteClick) {
+                        Text(
+                            text = "🗑",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
-
 
             Text(
                 text = trackName,
@@ -218,7 +304,6 @@ private fun LapHistoryCard(
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
-
 
             Text(
                 carName,

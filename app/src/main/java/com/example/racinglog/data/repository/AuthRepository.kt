@@ -13,20 +13,61 @@ class AuthRepository @Inject constructor() {
         return auth.currentUser?.uid
     }
 
-    fun signInAnonymously(
+    fun isUserLoggedIn(): Boolean {
+        return auth.currentUser != null &&
+                auth.currentUser?.isAnonymous == false
+    }
+
+    fun createAccount(
+        email: String,
+        password: String,
         onResult: (Boolean, String?) -> Unit
     ) {
-        if (auth.currentUser != null) {
-            onResult(true, null)
+        if (email.isBlank() || password.isBlank()) {
+            onResult(false, "Preencha o e-mail e a senha.")
             return
         }
 
-        auth.signInAnonymously()
+        if (password.length < 6) {
+            onResult(false, "A senha deve ter pelo menos 6 caracteres.")
+            return
+        }
+
+        auth.createUserWithEmailAndPassword(
+            email.trim(),
+            password
+        )
             .addOnSuccessListener {
                 onResult(true, null)
             }
             .addOnFailureListener { exception ->
                 onResult(false, exception.message)
             }
+    }
+
+    fun signIn(
+        email: String,
+        password: String,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        if (email.isBlank() || password.isBlank()) {
+            onResult(false, "Preencha o e-mail e a senha.")
+            return
+        }
+
+        auth.signInWithEmailAndPassword(
+            email.trim(),
+            password
+        )
+            .addOnSuccessListener {
+                onResult(true, null)
+            }
+            .addOnFailureListener { exception ->
+                onResult(false, exception.message)
+            }
+    }
+
+    fun signOut() {
+        auth.signOut()
     }
 }

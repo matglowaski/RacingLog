@@ -30,6 +30,12 @@ class HistoryViewModel @Inject constructor(
     var deleteError by mutableStateOf<String?>(null)
         private set
 
+    var isUpdating by mutableStateOf(false)
+        private set
+
+    var updateError by mutableStateOf<String?>(null)
+        private set
+
     fun deleteLap(lapId: String) {
         if (isDeleting) return
 
@@ -43,6 +49,25 @@ class HistoryViewModel @Inject constructor(
                 laps = laps.filterNot { it.id == lapId }
             } else {
                 deleteError = error ?: "Erro ao excluir volta."
+            }
+        }
+    }
+
+    fun updateLap(lap: Lap) {
+        if (isUpdating) return
+
+        isUpdating = true
+        updateError = null
+
+        repository.updateLap(lap) { success, error ->
+            isUpdating = false
+
+            if (success) {
+                laps = laps.map {
+                    if (it.id == lap.id) lap else it
+                }
+            } else {
+                updateError = error ?: "Erro ao atualizar volta."
             }
         }
     }
@@ -64,3 +89,5 @@ class HistoryViewModel @Inject constructor(
         }
     }
 }
+
+
